@@ -1,0 +1,840 @@
+---
+title: "Exploratory Analysis of the San Francisco Bay Area Bike Share Program"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+getwd()
+```
+```{r}
+setwd("C:/Users/TrungDang/Desktop/Data analysis projects/SFbike")
+```
+
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(readr)
+library(DataExplorer)
+library(lubridate)
+library(ggpubr)
+library(scales)
+station <- read_csv("station_data.csv", col_names = FALSE)
+trip <- read_csv("trip_data.csv", col_names = FALSE)
+```
+
+```{r}
+str(station)
+```
+
+
+```{r}
+str(trip)
+```
+
+
+As the raw data does not contain column names, we will assigne a name to each column
+
+```{r}
+colnames(station) <- c("stationid","name","lat","long","dockcount","landmark","installation")
+colnames(trip) <- c("tripid","duration","startdate","startstation","startterminal", "enddate","endstation","endterminal","bikeid", "subscriptiontype", "zipcode")
+```
+
+There are 70 stations with the corroressponding names. The data also contains the location (lat and long). 
+In addition, the data shows the number of dock for each station. Lastly, the installation date is also reported.
+
+
+```{r}
+str(trip)
+```
+
+The table trip contain 11 variables with 354152 rows. 
+Herein is the data dictionnary
+
+- tripid: numeric ID of bike trip
+- duration: time of trip (in seconds)
+- startdate: start date of trip with date and time, in PST
+- startstation: station name of starting station (corresponds to 'name' in the station dataset)
+- startterminal: numeric reference for starting station (corresponds to 'station id' in the
+station dataset)
+- enddate: endind date of trip with date and time.
+- endstation: station name for ending station (corresponds to 'name' in the station dataset)
+- endterminal : numeric reference for ending station (corresponds to 'station id' in the station_data.csv
+dataset)
+- bikeid : numeric ID of bike used
+- subscriptionType: Types of subscription: 'Subscriber' = annual or 30-day member; 'Customer' = 24-hour or 3-day member
+- zipcode: Home zip code of subscriber (customers can choose to manually enter zip at kiosk however data is unreliable)
+
+Transformation data
+convert some of the fields to factors.
+```{r}
+trip$tripid <- as.factor(trip$tripid) # we may not need that column
+trip$startterminal <- as.factor(trip$startterminal)
+trip$endternminal <- as.factor(trip$endterminal)
+trip$subscriptiontype <- as.factor(trip$subscriptiontype)
+trip$bikeid <- as.factor(trip$bikeid)
+trip$zipcode <- as.factor(trip$zipcode)
+```
+Convert start and end dates to date times.
+```{r}
+trip$startdate <- as.POSIXct(trip$startdate, format="%m/%d/%Y %H:%M")
+trip$enddate <- as.POSIXct(trip$enddate, format="%m/%d/%Y %H:%M")
+```
+
+DEALING WITH DUPLICATE
+
+```{r}
+nrow(distinct(trip))
+```
+
+```{r}
+nrow(distinct(station))
+```
+
+DEALING WITH MISSING VALUES
+
+```{r, fig.width = 7.5, fig.height = 6}
+plot_missing(trip)
+```
+
+Dealing with missing values
+```{r}
+length(which(is.na(trip$zipcode)))
+```
+In the column zipcode, there are 278 rows (0.07% of data) are missing. 
+
+
+INITIAL ANALYSIS : The dataset trip
+UNIVARIRATE ANALYSIS
+How many trip_id (unique) in the dataset
+
+```{r}
+ trip %>% 
+  distinct(tripid) %>% 
+  count()
+```
+
+DURATION
+The longest trip and the short trip
+```{r}
+trip %>% 
+  select(duration, startstation, endstation) %>% 
+  filter(duration == max(duration))
+```
+
+We would like to see what are these trips
+```{r}
+trip %>% 
+  select(startstation, endstation, duration) %>% 
+  filter(duration ==  min(duration))
+```
+
+There are 27 rows where the duration of trip is only 60 seconds. 
+Let see if the starting station and the ending station are the same.
+
+```{r}
+trip %>% 
+  select(startstation, endstation, duration) %>% 
+  filter(startstation == endstation, duration ==  min(duration))
+```
+Among 27 trips where the duration is 60 s, there are 23 trips that people take and drop the bike at the same station. We can speculate that these biker changed chose not to bike just after pick up the bike.  
+
+```{r}
+trip %>% 
+  select(startstation, endstation, duration) %>% 
+  filter(startstation != endstation, duration ==  min(duration))
+```
+
+```{r}
+summary(trip$duration)
+```
+The mean duration is 1046 seconde
+Distribution: box plot and histogram
+
+```{r}
+ggplot(data = trip, aes(duration))+
+  geom_histogram(bins= 300,
+                 col = "blue",
+                 fill = "blue", 
+                 alpha = 0.5) +
+  scale_x_continuous(name = "Duration", 
+                     limits = c(0, 10000)) +
+  scale_y_continuous(name = "Count")+
+  ggtitle("Duration distribution")+
+  theme(panel.background = element_blank())
+```
+
+Visualize the distribution of all the trips that last 1 hour maximum. 
+```{r}
+ggplot(data = trip, aes(duration))+
+  geom_histogram(bins= 100,
+                 col = "blue",
+                 fill = "blue", 
+                 alpha = 0.5) +
+  scale_x_continuous(name = "Duration", 
+                     limits = c(0, 3600)) +
+  scale_y_continuous(name = "Count")+
+  ggtitle("Duration distribution")+
+  theme(panel.background = element_blank())
+```
+
+Visualize the distribution of all the trips that last 30 minutes maximum.
+```{r}
+
+```
+
+
+```{r}
+ggplot(data = trip, aes(duration))+
+  geom_histogram(bins= 36,
+                 col = "blue",
+                 fill = "blue", 
+                 alpha = 0.5) +
+  scale_x_continuous(name = "Duration (seconds)", 
+                     limits = c(0, 1800)) +
+  scale_y_continuous(name = "Frequency")+
+  ggtitle("Duration distribution of all the trips")+
+  theme(panel.background = element_blank())
+```
+
+How many trip where the duration is less than or equal to 1 hour.
+
+```{r}
+trip %>% 
+  filter(duration <= 3600) %>% 
+  count()
+```
+
+```{r}
+trip %>% 
+  filter(duration > 3600) %>% 
+  count()
+```
+
+Ther are about 9438 trips whose duration is longer than 1 hours.
+There are outliers in the duration columns.
+
+```{r}
+boxplot(trip$duration,
+        ylim= c(0,1800),
+        names = c("Duration"),
+        col = c("blue"),
+        main = "Distribution of Duration", 
+        ylab = "Duration (s)", 
+        border = c("red"),
+        boxwex = 0.5)
+```
+
+WORKING WITH DATE: STARTDATE and ENDATE
+```{r}
+str(trip$startdate)
+```
+```{r}
+head(trip$startdate)
+```
+
+We should strip this column into startyear, startmonth, startday, starthour
+Also, we will strip the column endate into 4 columns: endyear, endmonth, endday, and endhour
+
+
+```{r}
+# lubridate package
+trip <- trip %>% 
+  mutate(start_date = date(startdate),
+         start_year = year(startdate),
+         start_month = month(startdate),
+         start_hour = hour(startdate),
+         start_dayofweek = wday(startdate),
+         start_dayofmonth = mday(startdate),
+         trip_ym = floor_date(startdate, "month"),
+         end_date = date(enddate),
+         end_year = year(enddate),
+         end_month = month(enddate),
+         end_hour = hour(enddate),
+         end_dayofweek = wday(enddate),
+         end_dayofmonth = mday(enddate),
+         trip_ym = floor_date(enddate, "month"))
+```
+
+As we want to see the day of week, we will create a column of day of week
+
+```{r}
+trip %>% 
+  select(start_month,start_dayofweek,end_month,end_dayofweek ) %>% 
+  head(10)
+```
+
+
+We should convert these columns into the proper format
+For day of week
+```{r}
+trip$start_dayofweek <- as.factor(trip$start_dayofweek)
+levels(trip$start_dayofweek) <- c("Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday")
+
+trip$end_dayofweek <- as.factor(trip$end_dayofweek)
+levels(trip$end_dayofweek) <- c("Sunday", "Monday", "Tueday", "Wednesday", "Thursday", "Friday", "Saturday")
+```
+
+For month
+
+```{r}
+trip$start_month <- as.factor(trip$start_month)
+levels(trip$start_month) <- c("January","February","March","April","May","June", "July","August","September","October","November","December")
+
+trip$end_month <- as.factor(trip$end_month)
+levels(trip$end_month) <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+```
+Checking these four columns
+```{r}
+trip %>% 
+  select(start_month,start_dayofweek,  end_month, end_dayofweek ) %>% 
+  head(10)
+```
+
+
+```{r}
+trip %>% 
+  group_by(start_year) %>% 
+  count()
+```
+
+```{r}
+startmonth_trip <- trip %>% 
+  group_by(start_month) %>% 
+  summarise(counts = n())
+```
+
+```{r, fig.width = 10, fig.height = 5}
+g_startmonth <- ggplot(startmonth_trip, 
+            aes(x = start_month, y = counts))
+g_startmonth + geom_bar(stat = "identity", 
+             width = 0.5, 
+             fill = "cornflowerblue") + 
+      labs(title = "Number of trips per month", 
+           caption = "SF Bay bike share",
+           x = "Month",
+           y = "Counts") +
+      theme(axis.text.x = element_text(size = 18, angle = 65, vjust = 0.6) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label = counts), position = position_dodge(width = 0.9), vjust = -0.25)
+
+```
+
+
+
+```{r, fig.width = 10, fig.height = 5}
+endmonth_trip <- trip %>% 
+  group_by(end_month) %>% 
+  summarise(counts = n())
+
+g_endmonth <- ggplot(endmonth_trip, 
+            aes(x = end_month, y = counts))
+g_endmonth + geom_bar(stat = "identity", 
+             width = 0.5, 
+             fill = "purple") + 
+      labs(title = "Number of trips per month", 
+           caption = "SF Bay bike share",
+           x = "Month",
+           y = "Counts") +
+      theme(axis.text.x = element_text(size = 18, angle = 65, vjust = 0.6) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label = counts), position = position_dodge(width = 0.9), vjust = -0.25)
+
+```
+
+It is obviously that these two bar charts are almost identical, except for a few long trip. 
+When look at the monthly data for the number of trips, we should consider  the fact that there are seven months that have 31 days, and the month of February has only 28 days.
+
+
+
+```{r}
+trip %>% 
+  filter(duration == max(duration)) %>% 
+  select(startdate, enddate)
+```
+
+```{r}
+trip %>% 
+  filter(start_year != end_year) %>% 
+  select(startdate, enddate, bikeid, startstation, endstation)
+```
+The user took the bike (bikeid 535) for 199 days. 
+
+```{r}
+trip %>% 
+  filter(start_month != end_month) %>% 
+  select(startdate, enddate, duration = duration, bikeid, startstation, endstation)
+```
+
+day of month
+
+```{r,fig.width = 10, fig.height = 5}
+start_dayofmonth_tbl <-  trip %>% 
+  group_by(start_dayofmonth) %>% 
+  count()
+
+g_occurrenceday <- ggplot(start_dayofmonth_tbl, aes(x = start_dayofmonth, y = n))
+g_occurrenceday + 
+  geom_line(color = "blue", size = 1) + 
+  geom_point(color = "purple", size = 3)+
+      labs(title = "Number of crimes by day of month", 
+           caption = "Source: SF Bay bike share",
+           x = "Day of month",
+           y = "Counts") + theme_set(theme_classic())
+```
+
+```{r,fig.width = 10, fig.height = 5}
+end_dayofmonth_tbl <- trip %>% 
+  group_by(end_dayofmonth) %>% 
+  count()
+
+g_occurrenceday <- ggplot(end_dayofmonth_tbl, aes(x = end_dayofmonth, y = n))
+g_occurrenceday + 
+  geom_line(color = "purple", size = 1) + 
+  geom_point(color = "blue", size = 3)+
+      labs(title = "Number of crimes by day of month", 
+           caption = "Source: SF Bay bike share",
+           x = "Day of month",
+           y = "Counts") + theme_set(theme_classic())
+```
+When comparing the total number of trips in function of day of month, we should remember that are 7 months that have 31 days.
+
+
+What day of week that bikes were used at most?
+```{r, fig.width = 10, fig.height = 5}
+start_dayofweek_trip <- trip %>% 
+  group_by(start_dayofweek) %>% 
+  summarise(counts = n())
+
+g_start_dayofweek <- ggplot(start_dayofweek_trip, 
+            aes(x = start_dayofweek, y = counts))
+g_start_dayofweek + geom_bar(stat = "identity", 
+             width = 0.5, 
+             fill = "purple") + 
+      labs(title = "Number of trips from Monday to Sunday (At starting station)", 
+           caption = "SF Bay bike share",
+           x = "Day of week",
+           y = "Counts") +
+      theme(axis.text.x = element_text(size = 18, angle = 65, vjust = 0.6) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label = counts), position = position_dodge(width = 0.9), vjust = -0.25)
+
+```
+
+```{r, fig.width = 10, fig.height = 5}
+end_dayofweek_trip <- trip %>% 
+  group_by(end_dayofweek) %>% 
+  summarise(counts = n())
+
+g_start_dayofweek <- ggplot(end_dayofweek_trip, 
+            aes(x = end_dayofweek, y = counts))
+g_start_dayofweek + geom_bar(stat = "identity", 
+             width = 0.5, 
+             fill = "grey") + 
+      labs(title = "Number of trips from Monday to Sunday (At ending station)", 
+           caption = "SF Bay bike share",
+           x = "Day of week",
+           y = "Counts") +
+      theme(axis.text.x = element_text(size = 18, angle = 65, vjust = 0.6) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label = counts), position = position_dodge(width = 0.9), vjust = -0.25)
+```
+
+Once again, the two graphs are almost identical. The number of trips on Friday are less than the other week day. Remarkably, the use of bike during Saturday and Sunday plunged. 
+
+
+Time of the day
+
+```{r,fig.width = 10, fig.height = 5}
+
+starthour_tbl <-  trip %>% 
+  group_by(start_hour) %>% 
+  summarise(counts = n())
+
+g_occurrencehour <- ggplot(starthour_tbl, 
+            aes(x = start_hour, y = counts))
+g_occurrencehour + geom_line(color = "grey") + geom_point (color = "blue", size = 4) +
+      labs(title = "Number of trips at starting stations by time of the day", 
+           caption = "Source: SF Bay bike share",
+           x = "Time of the day",
+           y = "Counts") + theme_set(theme_classic())
+```
+How many trips from 8 pm to 5 am.
+
+```{r}
+trip %>%
+  filter(start_hour >= 20 | start_hour <= 6) %>% 
+  group_by(start_hour) %>% 
+  count()
+```
+There are still some trips effectued from 0 am to 5 am. The number of trip increases gradually and peaked at 8 am and decreased at 10 am. The bike use from 10 am to 3 pm was steady, and jumped dramatically at 4 pm at reached the highest number at 5 pm. In other words, the number of trips (or the bike use) are significantly high during rush hour.
+
+
+The following graph show the frequency of bike use at the endding station
+```{r,fig.width = 10, fig.height = 5}
+
+endhour_tbl <-  trip %>% 
+  group_by(end_hour) %>% 
+  summarise(counts = n())
+
+g_occurrencehour <- ggplot(endhour_tbl, 
+            aes(x = end_hour, y = counts))
+g_occurrencehour + geom_line(color = "grey") + geom_point (color = "blue", size = 4) +
+      labs(title = "Number of trips at ending stations by time of the day", 
+           caption = "Source: SF Bay bike share",
+           x = "Time of the day",
+           y = "Counts") + theme_set(theme_classic())
+```
+
+STARTSTATION
+The top 10 used start station
+
+```{r}
+top_startstation <- trip %>%
+  group_by(startstation) %>% 
+  summarise(counts = n()) %>% 
+  arrange(desc(counts)) %>% 
+  top_n(10)
+```
+
+```{r, fig.width = 10, fig.height = 5, dpi = 300}
+  
+g1a <- ggplot(top_startstation, 
+            aes(x= reorder(startstation, counts), y = counts))
+g1a + geom_bar(stat="identity", 
+             width = 0.5, 
+             fill = "blue") + 
+      labs(title="The frequency the most trips at startstation", 
+           caption="Source: SF Bay Area Bike Share",
+           x =  "Starting Stations",
+           y= "Number of trips") + coord_flip()+
+      theme(axis.text.x = element_text(angle = 65, vjust=1) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label=counts), position = position_dodge(width = 0.9), vjust=-1)
+```
+
+```{r}
+least_startstation <- trip %>%
+  group_by(startstation) %>% 
+  summarise(counts = n()) %>% 
+  arrange((counts)) 
+
+least_startstation <- head(least_startstation,10)
+least_startstation
+```
+
+```{r,fig.width = 10, fig.height = 5, dpi = 300}
+  
+g1b <- ggplot(least_startstation, 
+            aes(x= reorder(startstation, -counts), y = counts))
+g1b + geom_bar(stat="identity", 
+             width = 0.5, 
+             fill = "blue") + 
+      labs(title="The frequency the least trips at startstation", 
+           caption="Source: SF Bay Area Bike Share",
+           x =  "Starting Stations",
+           y= "Number of trips") + coord_flip()+
+      theme(axis.text.x = element_text(angle = 65, vjust=0.6) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label=counts), position = position_dodge(width = 0.9), vjust=-1)
+```
+
+
+ENDSTATION
+
+```{r, fig.width = 10, fig.height = 5, dpi = 300}
+top_endstation <- trip %>%
+  group_by(endstation) %>% 
+  summarise(counts = n()) %>% 
+  arrange(desc(counts)) %>% 
+  top_n(10)
+
+top_endstation
+
+g2a <- ggplot(top_endstation, 
+            aes(x= reorder(endstation, counts), y = counts))
+g2a + geom_bar(stat="identity", 
+             width = 0.5, 
+             fill = "orange") + 
+      labs(title="The frequency the most trips at the terminal station", 
+           caption="Source: SF Bay Area Bike Share",
+           x =  "Starting Stations",
+           y= "Number of trips") + coord_flip()+
+      theme(axis.text.x = element_text(angle = 65, vjust=1) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label=counts), position = position_dodge(width = 0.9), vjust=-1)
+```
+
+```{r, fig.width = 10, fig.height = 5, dpi = 300}
+least_endstation <- trip %>%
+  group_by(endstation) %>% 
+  summarise(counts = n()) %>% 
+  arrange((counts))
+
+least_endstation <- head(least_endstation, 10)
+
+g2b <- ggplot(least_endstation, 
+            aes(x= reorder(endstation, -counts), y = counts))
+g2b + geom_bar(stat="identity", 
+             width = 0.5, 
+             fill = "orange") + 
+      labs(title="The frequency the least trips at the terminal station", 
+           caption="Source: SF Bay Area Bike Share",
+           x =  "Starting Stations",
+           y= "Number of trips") + coord_flip()+
+      theme(axis.text.x = element_text(angle = 65, vjust=1) +
+              theme_set(theme_classic())) +
+  geom_text(aes(label=counts), position = position_dodge(width = 0.9), vjust=-1)
+```
+
+BIKE
+
+How many bikes are available?
+```{r}
+n_distinct(trip$bikeid)
+```
+There are 668 bikes that have been used.
+
+What are the most and the least bike used.
+```{r}
+trip %>% 
+  group_by(bikeid) %>% 
+  summarise(frencency_bikes =  n()) %>% 
+  arrange((desc(frencency_bikes))) %>% 
+  head(10)
+```
+
+
+```{r}
+trip %>% 
+  group_by(bikeid) %>% 
+  summarise(frencency_bike =  n()) %>% 
+  mutate(usepermonth = round(frencency_bike/12),
+         userperday = round(frencency_bike/365)) %>% 
+  arrange((desc(frencency_bike))) %>% 
+  head(10)
+```
+These 10 bikes were used 90 time per month, about 3 times a day. 
+
+
+```{r}
+trip %>% 
+  group_by(bikeid) %>% 
+  summarise(frencency_bikes =  n()) %>% 
+  arrange(((frencency_bikes))) %>% 
+  head(10)
+```
+
+On avarage, how many time a bike is use
+```{r}
+trip %>% 
+  summarise(frencency_bike =  n(),
+  average = sum(frencency_bike)/668)
+ 
+```
+
+Let check the duration distribution of bike 878
+```{r}
+bike878 <- trip %>%
+  filter(bikeid == "878") %>% 
+  select(duration)
+
+head(bike878)
+```
+
+
+
+```{r, fig.width = 15, fig.height = 6}
+his1 <- ggplot(bike878, aes(x = duration)) +
+        geom_histogram(aes(y = ..count..), binwidth = 60,
+                       colour = "blue", fill = "blue") +
+        scale_x_continuous(name = "Mean ozone in\nparts per billion",
+                           breaks = seq(0, 30000, 60),
+                           limits=c(0, 30000)) +
+        scale_y_continuous(name = "Count") +
+        ggtitle("Frequency histogram of mean ozone")
+his1
+```
+      
+
+```{r}
+duration_bike878 <- trip %>% 
+  filter(bikeid == "878") %>%
+  group_by(duration) %>% 
+  select(duration) %>% 
+  arrange(desc(duration))
+
+head(duration_bike878,10)
+```
+
+
+
+```{r}
+duration_bike878_least <- trip %>% 
+  filter(bikeid == "878") %>%
+  group_by(duration) %>% 
+  select(duration) %>% 
+  arrange((duration))
+
+head(duration_bike878_least,10)
+```
+
+
+
+```{r}
+duration_bike62 <- trip %>% 
+  filter(bikeid == "62") %>%
+  group_by(duration) %>% 
+  select(duration) %>% 
+  arrange(desc(duration))
+
+head(duration_bike62,10)
+```
+
+```{r}
+ggplot(data = bike878, aes(duration))+
+  geom_histogram(bins= 600,
+                 col = "blue",
+                 fill = "blue", 
+                 alpha = 0.5) +
+  scale_x_continuous(name = "Duration", 
+                     limits = c(0, 30000)) +
+  scale_y_continuous(name = "Count")+
+  ggtitle("Duration distribution for bike 878")+
+  theme(panel.background = element_blank())
+```
+
+```{r}
+ggplot(data = bike878, aes(duration))+
+  geom_histogram(bins = 60,
+                 col = "blue",
+                 fill = "blue", 
+                 alpha = 0.5) +
+  scale_x_continuous(name = "Duration", 
+                     limits = c(0,3600)) +
+  scale_y_continuous(name = "Count")+
+  ggtitle("Duration distribution for bike 878")+
+  theme(panel.background = element_blank())
+```
+
+How many trips that last more than 1 h
+
+```{r}
+trip %>% 
+  filter(duration > 3600) %>% 
+  count()
+```
+
+There are 9738 trips whose the duration is longer than 60 min
+(9738*100%/354152) = 2.74 %
+
+
+SUBscription TYPE
+```{r}
+summary(trip$subscriptiontype)
+```
+```{r}
+trip$subscriptiontype <- as.factor(trip$subscriptiontype)
+summary(trip$subscriptiontype)
+```
+There are 43935 Custumer and 310217 Subscriber.
+
+```{r}
+
+```
+
+
+
+Creating a list where we found the min duration between two station. 
+We exclude the trips where the startstation and the end station is the same.
+
+```{r}
+samepoint <- trip %>%
+  select(startstation,endstation, duration) %>% 
+  group_by(startstation, endstation) %>%
+  filter(startstation == endstation) %>% 
+  summarise(counts = n())
+
+sum(samepoint$counts)
+```
+
+```{r}
+different_point <- trip %>%
+  select(startstation,endstation, duration) %>% 
+  group_by(startstation, endstation) %>%
+  filter(startstation != endstation) %>% 
+  summarise(counts = n())
+
+sum(different_point$counts)
+```
+
+List of starting station and ending station, with the minimal duration of trip
+We will exclude all the trip where the user pick up and drop off the bike at the same station.
+```{r}
+trip_minduration <- trip %>%
+  select(startstation,endstation, duration) %>% 
+  group_by(startstation, endstation) %>%
+  filter(startstation != endstation, duration == min(duration)) %>% 
+  arrange(duration)
+
+head(trip_minduration,30)
+```
+
+```{r}
+trip %>% 
+  select(startstation,endstation, duration) %>% 
+  filter(startstation == 'Castro Street and El Camino Real',
+endstation == 'Howard at 2nd')
+```
+
+```{r}
+trip %>% 
+  select(startstation,endstation, duration) %>% 
+  filter(startstation == 'MLK Library',
+endstation == 'Mountain View Caltrain Station')
+```
+
+```{r}
+trip %>% 
+  select(startstation,endstation, duration) %>% 
+  filter(startstation == 'San Antonio Caltrain Station',
+endstation == 'Stanford in Redwood City')
+```
+
+
+```{r}
+trip %>% 
+  select(startstation,endstation, duration) %>% 
+  filter(startstation == 'Beale at Market',
+endstation == 'Harry Bridges Plaza (Ferry Building)')
+```
+
+
+
+Examining the data set Staion
+
+```{r}
+str(station)
+```
+
+
+Transformation data
+Convert some of the fields to factors.
+```{r}
+station$stationid <- as.factor(station$stationid) 
+station$name <- as.factor(station$name)
+station$landmark <- as.factor(station$landmark)
+```
+
+(TO BE CONTINUED)
+
